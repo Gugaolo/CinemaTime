@@ -166,6 +166,32 @@ export function AppProvider({ children }) {
     setComments((current) => [newComment, ...current])
   }
 
+  function updateComment(commentId, text) {
+    if (!currentUser || !text.trim()) return
+
+    setComments((current) =>
+      current.map((comment) =>
+        comment.id === commentId && comment.userId === currentUser.id
+          ? {
+              ...comment,
+              text: text.trim(),
+              updatedAt: new Date().toISOString(),
+            }
+          : comment,
+      ),
+    )
+  }
+
+  function deleteComment(commentId) {
+    if (!currentUser) return
+
+    setComments((current) =>
+      current.filter(
+        (comment) => !(comment.id === commentId && comment.userId === currentUser.id),
+      ),
+    )
+  }
+
   function getMovieComments(movieId) {
     return comments.filter((comment) => comment.movieId === movieId)
   }
@@ -308,6 +334,8 @@ export function AppProvider({ children }) {
       getUserRating,
       rateMovie,
       addComment,
+      updateComment,
+      deleteComment,
       getMovieComments,
       isInWatchlist,
       toggleWatchlist,

@@ -2,8 +2,16 @@ import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 
 function CommentSection({ movieId }) {
-  const { currentUser, getMovieComments, addComment } = useApp()
+  const {
+    currentUser,
+    getMovieComments,
+    addComment,
+    updateComment,
+    deleteComment,
+  } = useApp()
   const [text, setText] = useState('')
+  const [editingCommentId, setEditingCommentId] = useState(null)
+  const [editingText, setEditingText] = useState('')
 
   const comments = getMovieComments(movieId)
 
@@ -11,6 +19,22 @@ function CommentSection({ movieId }) {
     event.preventDefault()
     addComment(movieId, text)
     setText('')
+  }
+
+  function handleEditStart(comment) {
+    setEditingCommentId(comment.id)
+    setEditingText(comment.text)
+  }
+
+  function handleEditCancel() {
+    setEditingCommentId(null)
+    setEditingText('')
+  }
+
+  function handleEditSubmit(event, commentId) {
+    event.preventDefault()
+    updateComment(commentId, editingText)
+    handleEditCancel()
   }
 
   return (
@@ -36,7 +60,41 @@ function CommentSection({ movieId }) {
         {comments.map((comment) => (
           <div key={comment.id} className="comment-item">
             <strong>{comment.username}</strong>
-            <p>{comment.text}</p>
+            {editingCommentId === comment.id ? (
+              <form onSubmit={(event) => handleEditSubmit(event, comment.id)} className="form-stack">
+                <textarea
+                  value={editingText}
+                  onChange={(event) => setEditingText(event.target.value)}
+                />
+                <div className="row-actions">
+                  <button type="submit" className="primary-btn">Save</button>
+                  <button type="button" className="secondary-btn" onClick={handleEditCancel}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <p>{comment.text}</p>
+            )}
+
+            {currentUser?.id === comment.userId && editingCommentId !== comment.id && (
+              <div className="row-actions">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => handleEditStart(comment)}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => deleteComment(comment.id)}
+                >
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
