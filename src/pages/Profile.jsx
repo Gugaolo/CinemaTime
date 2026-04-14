@@ -6,7 +6,7 @@ function Profile() {
 
   const watchlistMovies = getUserWatchlistMovies()
   const submittedCount = suggestions.filter(
-    (item) => item.submittedBy === currentUser?.username,
+    (item) => item.submittedById === currentUser?.id,
   ).length
 
   return (

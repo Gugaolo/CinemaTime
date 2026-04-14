@@ -7,7 +7,7 @@ function Login() {
   const navigate = useNavigate()
 
   const [form, setForm] = useState({
-    username: '',
+    email: '',
     password: '',
   })
   const [error, setError] = useState('')
@@ -20,9 +20,10 @@ function Login() {
     }))
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-    const result = login(form.username, form.password)
+    setError('')
+    const result = await login(form.email, form.password)
 
     if (!result.success) {
       setError(result.message)
@@ -39,9 +40,10 @@ function Login() {
 
         <form onSubmit={handleSubmit} className="form-stack">
           <input
-            name="username"
-            placeholder="Username"
-            value={form.username}
+            name="email"
+            type="email"
+            placeholder="E-mail"
+            value={form.email}
             onChange={handleChange}
           />
           <input

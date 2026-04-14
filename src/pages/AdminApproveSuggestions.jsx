@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 
 function AdminApproveSuggestions() {
   const { suggestions, rejectSuggestion, prepareSuggestionForMovie } = useApp()
   const navigate = useNavigate()
+  const [error, setError] = useState('')
 
   const pendingSuggestions = suggestions.filter((item) => item.status === 'pending')
 
@@ -34,13 +36,22 @@ function AdminApproveSuggestions() {
               </button>
               <button
                 className="small-btn light-btn"
-                onClick={() => rejectSuggestion(item.id)}
+                onClick={async () => {
+                  setError('')
+                  const result = await rejectSuggestion(item.id)
+
+                  if (!result.success) {
+                    setError(result.message)
+                  }
+                }}
               >
                 Deny
               </button>
             </div>
           </div>
         ))}
+
+        {error && <p className="error-text">{error}</p>}
       </section>
     </div>
   )

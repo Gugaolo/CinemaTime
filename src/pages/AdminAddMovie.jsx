@@ -1,13 +1,22 @@
 import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import MovieForm from '../components/MovieForm'
 import { useApp } from '../context/AppContext'
 
 function AdminAddMovie() {
   const { addMovie, prefillMovie } = useApp()
   const navigate = useNavigate()
+  const [error, setError] = useState('')
 
-  function handleSubmit(formData) {
-    addMovie(formData)
+  async function handleSubmit(formData) {
+    setError('')
+    const result = await addMovie(formData)
+
+    if (!result.success) {
+      setError(result.message)
+      return
+    }
+
     navigate('/')
   }
 
@@ -20,6 +29,7 @@ function AdminAddMovie() {
           onSubmit={handleSubmit}
           buttonText="Add"
         />
+        {error && <p className="error-text">{error}</p>}
       </div>
     </div>
   )

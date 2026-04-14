@@ -1,9 +1,13 @@
 :root {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Manrope', sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #111;
-  background: #f2f2f2;
+  color: #271814;
+  background: #f6eadb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {

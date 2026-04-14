@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 function SubmitSuggestion() {
   const { submitSuggestion } = useApp()
   const navigate = useNavigate()
+  const [error, setError] = useState('')
 
   const [form, setForm] = useState({
     title: '',
@@ -22,9 +23,16 @@ function SubmitSuggestion() {
     }))
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-    submitSuggestion(form)
+    setError('')
+    const result = await submitSuggestion(form)
+
+    if (!result.success) {
+      setError(result.message)
+      return
+    }
+
     navigate('/profile')
   }
 
@@ -61,6 +69,8 @@ function SubmitSuggestion() {
 
           <button type="submit" className="primary-btn">Add</button>
         </form>
+
+        {error && <p className="error-text">{error}</p>}
       </div>
     </div>
   )

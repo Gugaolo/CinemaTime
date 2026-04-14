@@ -1,45 +1,73 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import {
-  demoComments,
-  demoMovies,
-  demoRatings,
-  demoSuggestions,
-  demoUsers,
-  demoWatchlist,
-} from '../data/demoData'
+import { supabase } from '../lib/supabase'
 
 const AppContext = createContext()
 
-const STORAGE_KEYS = {
-  users: 'cinema_users',
-  currentUser: 'cinema_current_user',
-  movies: 'cinema_movies',
-  ratings: 'cinema_ratings',
-  comments: 'cinema_comments',
-  watchlist: 'cinema_watchlist',
-  suggestions: 'cinema_suggestions',
-}
-
-function readStorage(key, fallback) {
-  const raw = localStorage.getItem(key)
-  return raw ? JSON.parse(raw) : fallback
-}
-
-function writeStorage(key, value) {
-  localStorage.setItem(key, JSON.stringify(value))
-}
-
 function normalizeMovie(movie) {
-  if (!movie) return movie
-
   return {
     ...movie,
-    cast_members: movie.cast_members ?? movie.cast ?? '',
+    cast_members: movie.cast_members ?? '',
   }
 }
 
+function normalizeRating(rating) {
+  return {
+    id: rating.id,
+    userId: rating.user_id,
+    movieId: rating.movie_id,
+    rating: rating.rating,
+  }
+}
+
+function normalizeWatchlistItem(item) {
+  return {
+    id: item.id,
+    userId: item.user_id,
+    movieId: item.movie_id,
+  }
+}
+
+async function fetchProfilesByIds(userIds) {
+  if (!supabase || userIds.length === 0) {
+    return {}
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, email, role')
+    .in('id', userIds)
+
+  if (error) {
+    console.error('Failed to load profiles:', error)
+    return {}
+  }
+
+  return data.reduce((result, profile) => {
+    result[profile.id] = profile
+    return result
+  }, {})
+}
+
+async function fetchProfile(userId) {
+  if (!supabase || !userId) {
+    return null
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, email, role')
+    .eq('id', userId)
+    .single()
+
+  if (error) {
+    console.error('Failed to load current profile:', error)
+    return null
+  }
+
+  return data
+}
+
 export function AppProvider({ children }) {
-  const [users, setUsers] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
   const [movies, setMovies] = useState([])
   const [ratings, setRatings] = useState([])
@@ -47,66 +75,281 @@ export function AppProvider({ children }) {
   const [watchlist, setWatchlist] = useState([])
   const [suggestions, setSuggestions] = useState([])
   const [prefillMovie, setPrefillMovie] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    setUsers(readStorage(STORAGE_KEYS.users, demoUsers))
-    setCurrentUser(readStorage(STORAGE_KEYS.currentUser, null))
-    setMovies(readStorage(STORAGE_KEYS.movies, demoMovies).map(normalizeMovie))
-    setRatings(readStorage(STORAGE_KEYS.ratings, demoRatings))
-    setComments(readStorage(STORAGE_KEYS.comments, demoComments))
-    setWatchlist(readStorage(STORAGE_KEYS.watchlist, demoWatchlist))
-    setSuggestions(readStorage(STORAGE_KEYS.suggestions, demoSuggestions))
-  }, [])
+  async function fetchMovies() {
+    if (!supabase) {
+      console.error('Supabase client is not configured.')
+      return
+    }
 
-  useEffect(() => writeStorage(STORAGE_KEYS.users, users), [users])
-  useEffect(() => writeStorage(STORAGE_KEYS.currentUser, currentUser), [currentUser])
-  useEffect(() => writeStorage(STORAGE_KEYS.movies, movies), [movies])
-  useEffect(() => writeStorage(STORAGE_KEYS.ratings, ratings), [ratings])
-  useEffect(() => writeStorage(STORAGE_KEYS.comments, comments), [comments])
-  useEffect(() => writeStorage(STORAGE_KEYS.watchlist, watchlist), [watchlist])
-  useEffect(() => writeStorage(STORAGE_KEYS.suggestions, suggestions), [suggestions])
+    const { data, error } = await supabase
+      .from('movies')
+      .select('*')
+      .order('created_at', { ascending: false })
 
-  function login(username, password) {
-    const foundUser = users.find(
-      (user) => user.username === username && user.password === password,
+    if (error) {
+      console.error('Failed to load movies:', error)
+      return
+    }
+
+    setMovies(data.map(normalizeMovie))
+  }
+
+  async function fetchRatings() {
+    if (!supabase) {
+      console.error('Supabase client is not configured.')
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('ratings')
+      .select('*')
+
+    if (error) {
+      console.error('Failed to load ratings:', error)
+      return
+    }
+
+    setRatings(data.map(normalizeRating))
+  }
+
+  async function fetchComments() {
+    if (!supabase) {
+      console.error('Supabase client is not configured.')
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('comments')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Failed to load comments:', error)
+      return
+    }
+
+    const profileMap = await fetchProfilesByIds(
+      [...new Set(data.map((comment) => comment.user_id).filter(Boolean))],
     )
 
-    if (!foundUser) {
-      return { success: false, message: 'Wrong username or password.' }
-    }
-
-    setCurrentUser(foundUser)
-    return { success: true }
+    setComments(
+      data.map((comment) => ({
+        id: comment.id,
+        userId: comment.user_id,
+        movieId: comment.movie_id,
+        username: profileMap[comment.user_id]?.username ?? 'Unknown user',
+        text: comment.content,
+        createdAt: comment.created_at,
+      })),
+    )
   }
 
-  function signUp({ username, email, password }) {
-    const usernameExists = users.some((user) => user.username === username)
-    const emailExists = users.some((user) => user.email === email)
-
-    if (usernameExists) {
-      return { success: false, message: 'Username already exists.' }
+  async function fetchWatchlist(userId = currentUser?.id) {
+    if (!supabase || !userId) {
+      setWatchlist([])
+      return
     }
 
-    if (emailExists) {
-      return { success: false, message: 'Email already exists.' }
+    const { data, error } = await supabase
+      .from('watchlist')
+      .select('*')
+      .eq('user_id', userId)
+
+    if (error) {
+      console.error('Failed to load watchlist:', error)
+      return
     }
 
-    const newUser = {
-      id: Date.now(),
-      username,
-      email,
+    setWatchlist(data.map(normalizeWatchlistItem))
+  }
+
+  async function fetchSuggestions() {
+    if (!supabase || !currentUser) {
+      setSuggestions([])
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('movie_suggestions')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Failed to load suggestions:', error)
+      return
+    }
+
+    const profileMap = await fetchProfilesByIds(
+      [...new Set(data.map((suggestion) => suggestion.submitted_by).filter(Boolean))],
+    )
+
+    setSuggestions(
+      data.map((suggestion) => ({
+        id: suggestion.id,
+        title: suggestion.title,
+        genre: suggestion.genre,
+        year: suggestion.year,
+        picture_url: suggestion.picture_url,
+        description: suggestion.description,
+        submittedById: suggestion.submitted_by,
+        submittedBy: profileMap[suggestion.submitted_by]?.username ?? 'Unknown user',
+        status: suggestion.status,
+      })),
+    )
+  }
+
+  async function refreshCurrentUser(authUser) {
+    const profile = await fetchProfile(authUser.id)
+
+    setCurrentUser({
+      id: authUser.id,
+      email: profile?.email ?? authUser.email ?? '',
+      username: profile?.username ?? authUser.email ?? 'User',
+      role: profile?.role ?? 'user',
+    })
+  }
+
+  useEffect(() => {
+    let ignore = false
+
+    async function initializeApp() {
+      if (!supabase) {
+        console.error('Supabase client is not configured.')
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+
+      await Promise.all([
+        fetchMovies(),
+        fetchRatings(),
+        fetchComments(),
+      ])
+
+      const { data, error } = await supabase.auth.getSession()
+
+      if (error) {
+        console.error('Failed to read auth session:', error)
+      } else if (!ignore && data.session?.user) {
+        await refreshCurrentUser(data.session.user)
+      }
+
+      if (!ignore) {
+        setIsLoading(false)
+      }
+    }
+
+    void initializeApp()
+
+    const { data } = supabase?.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        await refreshCurrentUser(session.user)
+      } else {
+        setCurrentUser(null)
+      }
+    }) ?? { data: { subscription: null } }
+
+    return () => {
+      ignore = true
+      data.subscription?.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!currentUser) {
+      setWatchlist([])
+      setSuggestions([])
+      setPrefillMovie(null)
+      return
+    }
+
+    void fetchWatchlist(currentUser.id)
+    void fetchSuggestions()
+  }, [currentUser])
+
+  async function login(email, password) {
+    if (!supabase) {
+      const message = 'Supabase is not configured.'
+      console.error(message)
+      return { success: false, message }
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
       password,
-      role: 'user',
-    }
+    })
 
-    setUsers((current) => [...current, newUser])
-    setCurrentUser(newUser)
+    if (error) {
+      console.error('Login failed:', error)
+      return { success: false, message: error.message }
+    }
 
     return { success: true }
   }
 
-  function logout() {
-    setCurrentUser(null)
+  async function signUp({ username, email, password }) {
+    if (!supabase) {
+      const message = 'Supabase is not configured.'
+      console.error(message)
+      return { success: false, message }
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: {
+          username: username.trim(),
+        },
+      },
+    })
+
+    if (error) {
+      console.error('Sign up failed:', error)
+      return { success: false, message: error.message }
+    }
+
+    if (!data.user) {
+      return {
+        success: true,
+        message: 'Check your email to confirm your account before logging in.',
+      }
+    }
+
+    const { error: profileError } = await supabase.from('profiles').upsert({
+      id: data.user.id,
+      username: username.trim(),
+      email: email.trim(),
+      role: 'user',
+    })
+
+    if (profileError) {
+      console.error('Failed to create profile:', profileError)
+      return { success: false, message: profileError.message }
+    }
+
+    return {
+      success: true,
+      message: data.session
+        ? ''
+        : 'Check your email to confirm your account before logging in.',
+    }
+  }
+
+  async function logout() {
+    if (!supabase) {
+      console.error('Supabase is not configured.')
+      return
+    }
+
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      console.error('Logout failed:', error)
+    }
   }
 
   function getAverageRating(movieId) {
@@ -119,77 +362,97 @@ export function AppProvider({ children }) {
 
   function getUserRating(movieId) {
     if (!currentUser) return 0
+
     const found = ratings.find(
       (item) => item.movieId === movieId && item.userId === currentUser.id,
     )
+
     return found ? found.rating : 0
   }
 
-  function rateMovie(movieId, value) {
-    if (!currentUser) return
-
-    const existing = ratings.find(
-      (item) => item.movieId === movieId && item.userId === currentUser.id,
-    )
-
-    if (existing) {
-      setRatings((current) =>
-        current.map((item) =>
-          item.id === existing.id ? { ...item, rating: value } : item,
-        ),
-      )
-      return
+  async function rateMovie(movieId, value) {
+    if (!supabase || !currentUser) {
+      return { success: false, message: 'You must be logged in to rate a movie.' }
     }
 
-    const newRating = {
-      id: Date.now(),
-      movieId,
-      userId: currentUser.id,
-      rating: value,
+    const { error } = await supabase.from('ratings').upsert(
+      {
+        user_id: currentUser.id,
+        movie_id: movieId,
+        rating: value,
+      },
+      {
+        onConflict: 'user_id,movie_id',
+      },
+    )
+
+    if (error) {
+      console.error('Failed to save rating:', error)
+      return { success: false, message: error.message }
     }
 
-    setRatings((current) => [...current, newRating])
+    await fetchRatings()
+    return { success: true }
   }
 
-  function addComment(movieId, text) {
-    if (!currentUser || !text.trim()) return
-
-    const newComment = {
-      id: Date.now(),
-      movieId,
-      userId: currentUser.id,
-      username: currentUser.username,
-      text: text.trim(),
-      createdAt: new Date().toISOString(),
+  async function addComment(movieId, text) {
+    if (!supabase || !currentUser || !text.trim()) {
+      return { success: false, message: 'Comment text is required.' }
     }
 
-    setComments((current) => [newComment, ...current])
+    const { error } = await supabase.from('comments').insert({
+      user_id: currentUser.id,
+      movie_id: movieId,
+      content: text.trim(),
+    })
+
+    if (error) {
+      console.error('Failed to add comment:', error)
+      return { success: false, message: error.message }
+    }
+
+    await fetchComments()
+    return { success: true }
   }
 
-  function updateComment(commentId, text) {
-    if (!currentUser || !text.trim()) return
+  async function updateComment(commentId, text) {
+    if (!supabase || !currentUser || !text.trim()) {
+      return { success: false, message: 'Comment text is required.' }
+    }
 
-    setComments((current) =>
-      current.map((comment) =>
-        comment.id === commentId && comment.userId === currentUser.id
-          ? {
-              ...comment,
-              text: text.trim(),
-              updatedAt: new Date().toISOString(),
-            }
-          : comment,
-      ),
-    )
+    const { error } = await supabase
+      .from('comments')
+      .update({ content: text.trim() })
+      .eq('id', commentId)
+      .eq('user_id', currentUser.id)
+
+    if (error) {
+      console.error('Failed to update comment:', error)
+      return { success: false, message: error.message }
+    }
+
+    await fetchComments()
+    return { success: true }
   }
 
-  function deleteComment(commentId) {
-    if (!currentUser) return
+  async function deleteComment(commentId) {
+    if (!supabase || !currentUser) {
+      return { success: false, message: 'You must be logged in to delete comments.' }
+    }
 
-    setComments((current) =>
-      current.filter(
-        (comment) => !(comment.id === commentId && comment.userId === currentUser.id),
-      ),
-    )
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId)
+      .eq('user_id', currentUser.id)
+
+    if (error) {
+      console.error('Failed to delete comment:', error)
+      return { success: false, message: error.message }
+    }
+
+    await fetchComments()
+    return { success: true }
   }
 
   function getMovieComments(movieId) {
@@ -198,34 +461,52 @@ export function AppProvider({ children }) {
 
   function isInWatchlist(movieId) {
     if (!currentUser) return false
+
     return watchlist.some(
       (item) => item.userId === currentUser.id && item.movieId === movieId,
     )
   }
 
-  function toggleWatchlist(movieId) {
-    if (!currentUser) return
+  async function toggleWatchlist(movieId) {
+    if (!supabase || !currentUser) {
+      return { success: false, message: 'You must be logged in to manage watchlist.' }
+    }
 
-    const exists = watchlist.find(
+    const existing = watchlist.find(
       (item) => item.userId === currentUser.id && item.movieId === movieId,
     )
 
-    if (exists) {
-      setWatchlist((current) => current.filter((item) => item.id !== exists.id))
-      return
+    let error = null
+
+    if (existing) {
+      const response = await supabase
+        .from('watchlist')
+        .delete()
+        .eq('user_id', currentUser.id)
+        .eq('movie_id', movieId)
+
+      error = response.error
+    } else {
+      const response = await supabase.from('watchlist').insert({
+        user_id: currentUser.id,
+        movie_id: movieId,
+      })
+
+      error = response.error
     }
 
-    const newWatchlistItem = {
-      id: Date.now(),
-      userId: currentUser.id,
-      movieId,
+    if (error) {
+      console.error('Failed to update watchlist:', error)
+      return { success: false, message: error.message }
     }
 
-    setWatchlist((current) => [...current, newWatchlistItem])
+    await fetchWatchlist(currentUser.id)
+    return { success: true }
   }
 
   function getUserWatchlistMovies() {
     if (!currentUser) return []
+
     const ids = watchlist
       .filter((item) => item.userId === currentUser.id)
       .map((item) => item.movieId)
@@ -233,29 +514,47 @@ export function AppProvider({ children }) {
     return movies.filter((movie) => ids.includes(movie.id))
   }
 
-  function submitSuggestion(formData) {
-    if (!currentUser) return
+  async function submitSuggestion(formData) {
+    if (!supabase || !currentUser) {
+      return { success: false, message: 'You must be logged in to submit a suggestion.' }
+    }
 
-    const newSuggestion = {
-      id: Date.now(),
+    const { error } = await supabase.from('movie_suggestions').insert({
       title: formData.title,
       genre: formData.genre,
       year: Number(formData.year),
       picture_url: formData.picture_url,
       description: formData.description,
-      submittedBy: currentUser.username,
+      submitted_by: currentUser.id,
       status: 'pending',
+    })
+
+    if (error) {
+      console.error('Failed to submit suggestion:', error)
+      return { success: false, message: error.message }
     }
 
-    setSuggestions((current) => [newSuggestion, ...current])
+    await fetchSuggestions()
+    return { success: true }
   }
 
-  function rejectSuggestion(id) {
-    setSuggestions((current) =>
-      current.map((item) =>
-        item.id === id ? { ...item, status: 'rejected' } : item,
-      ),
-    )
+  async function rejectSuggestion(id) {
+    if (!supabase) {
+      return { success: false, message: 'Supabase is not configured.' }
+    }
+
+    const { error } = await supabase
+      .from('movie_suggestions')
+      .update({ status: 'rejected' })
+      .eq('id', id)
+
+    if (error) {
+      console.error('Failed to reject suggestion:', error)
+      return { success: false, message: error.message }
+    }
+
+    await fetchSuggestions()
+    return { success: true }
   }
 
   function prepareSuggestionForMovie(id) {
@@ -264,62 +563,81 @@ export function AppProvider({ children }) {
 
     setPrefillMovie({
       title: suggestion.title,
-      genre: suggestion.genre,
-      year: suggestion.year,
-      image_url: suggestion.picture_url,
-      description: suggestion.description,
+      genre: suggestion.genre ?? '',
+      year: suggestion.year ?? '',
+      image_url: suggestion.picture_url ?? '',
+      description: suggestion.description ?? '',
       cast_members: '',
       suggestionId: suggestion.id,
     })
   }
 
-  function addMovie(movieData) {
-    const newMovie = {
-      id: Date.now(),
+  async function addMovie(movieData) {
+    if (!supabase) {
+      return { success: false, message: 'Supabase is not configured.' }
+    }
+
+    const { error } = await supabase.from('movies').insert({
       title: movieData.title,
       genre: movieData.genre,
       year: Number(movieData.year),
       image_url: movieData.image_url,
       description: movieData.description,
       cast_members: movieData.cast_members,
-    }
+    })
 
-    setMovies((current) => [...current, newMovie])
+    if (error) {
+      console.error('Failed to add movie:', error)
+      return { success: false, message: error.message }
+    }
 
     if (movieData.suggestionId) {
-      setSuggestions((current) =>
-        current.map((item) =>
-          item.id === movieData.suggestionId
-            ? { ...item, status: 'approved' }
-            : item,
-        ),
-      )
+      const { error: suggestionError } = await supabase
+        .from('movie_suggestions')
+        .update({ status: 'approved' })
+        .eq('id', movieData.suggestionId)
+
+      if (suggestionError) {
+        console.error('Failed to approve suggestion:', suggestionError)
+        return { success: false, message: suggestionError.message }
+      }
+
+      await fetchSuggestions()
     }
 
+    await fetchMovies()
     setPrefillMovie(null)
+    return { success: true }
   }
 
-  function updateMovie(movieId, movieData) {
-    setMovies((current) =>
-      current.map((movie) =>
-        movie.id === movieId
-          ? {
-              ...movie,
-              title: movieData.title,
-              genre: movieData.genre,
-              year: Number(movieData.year),
-              image_url: movieData.image_url,
-              description: movieData.description,
-              cast_members: movieData.cast_members,
-            }
-          : movie,
-      ),
-    )
+  async function updateMovie(movieId, movieData) {
+    if (!supabase) {
+      return { success: false, message: 'Supabase is not configured.' }
+    }
+
+    const { error } = await supabase
+      .from('movies')
+      .update({
+        title: movieData.title,
+        genre: movieData.genre,
+        year: Number(movieData.year),
+        image_url: movieData.image_url,
+        description: movieData.description,
+        cast_members: movieData.cast_members,
+      })
+      .eq('id', movieId)
+
+    if (error) {
+      console.error('Failed to update movie:', error)
+      return { success: false, message: error.message }
+    }
+
+    await fetchMovies()
+    return { success: true }
   }
 
   const value = useMemo(
     () => ({
-      users,
       currentUser,
       movies,
       ratings,
@@ -327,9 +645,15 @@ export function AppProvider({ children }) {
       watchlist,
       suggestions,
       prefillMovie,
+      isLoading,
       login,
       signUp,
       logout,
+      fetchMovies,
+      fetchComments,
+      fetchRatings,
+      fetchWatchlist,
+      fetchSuggestions,
       getAverageRating,
       getUserRating,
       rateMovie,
@@ -346,7 +670,7 @@ export function AppProvider({ children }) {
       addMovie,
       updateMovie,
     }),
-    [users, currentUser, movies, ratings, comments, watchlist, suggestions, prefillMovie],
+    [currentUser, movies, ratings, comments, watchlist, suggestions, prefillMovie, isLoading],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

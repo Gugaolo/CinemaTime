@@ -21,16 +21,17 @@ function SignUp() {
     }))
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-    const result = signUp(form)
+    setError('')
+    const result = await signUp(form)
 
     if (!result.success) {
       setError(result.message)
       return
     }
 
-    navigate('/')
+    navigate('/login')
   }
 
   return (

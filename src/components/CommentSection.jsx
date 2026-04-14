@@ -12,12 +12,20 @@ function CommentSection({ movieId }) {
   const [text, setText] = useState('')
   const [editingCommentId, setEditingCommentId] = useState(null)
   const [editingText, setEditingText] = useState('')
+  const [error, setError] = useState('')
 
   const comments = getMovieComments(movieId)
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-    addComment(movieId, text)
+    setError('')
+    const result = await addComment(movieId, text)
+
+    if (!result.success) {
+      setError(result.message)
+      return
+    }
+
     setText('')
   }
 
@@ -31,10 +39,26 @@ function CommentSection({ movieId }) {
     setEditingText('')
   }
 
-  function handleEditSubmit(event, commentId) {
+  async function handleEditSubmit(event, commentId) {
     event.preventDefault()
-    updateComment(commentId, editingText)
+    setError('')
+    const result = await updateComment(commentId, editingText)
+
+    if (!result.success) {
+      setError(result.message)
+      return
+    }
+
     handleEditCancel()
+  }
+
+  async function handleDelete(commentId) {
+    setError('')
+    const result = await deleteComment(commentId)
+
+    if (!result.success) {
+      setError(result.message)
+    }
   }
 
   return (
@@ -53,6 +77,7 @@ function CommentSection({ movieId }) {
       )}
 
       {!currentUser && <p className="muted">Log in to write a comment.</p>}
+      {error && <p className="error-text">{error}</p>}
 
       <div className="comment-list">
         {comments.length === 0 && <p className="muted">No comments yet.</p>}
@@ -89,7 +114,7 @@ function CommentSection({ movieId }) {
                 <button
                   type="button"
                   className="secondary-btn"
-                  onClick={() => deleteComment(comment.id)}
+                  onClick={() => handleDelete(comment.id)}
                 >
                   Delete
                 </button>

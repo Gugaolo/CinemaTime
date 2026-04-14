@@ -1,4 +1,5 @@
 import { useParams } from 'react-router-dom'
+import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import RatingStars from '../components/RatingStars'
 import CommentSection from '../components/CommentSection'
@@ -13,6 +14,7 @@ function MovieDetails() {
     isInWatchlist,
     toggleWatchlist,
   } = useApp()
+  const [error, setError] = useState('')
 
   const { id } = useParams()
   const movie = movies.find((item) => String(item.id) === id)
@@ -24,6 +26,24 @@ function MovieDetails() {
   const avg = getAverageRating(movie.id)
   const myRating = getUserRating(movie.id)
   const inWatchlist = isInWatchlist(movie.id)
+
+  async function handleWatchlistToggle() {
+    setError('')
+    const result = await toggleWatchlist(movie.id)
+
+    if (!result.success) {
+      setError(result.message)
+    }
+  }
+
+  async function handleRate(value) {
+    setError('')
+    const result = await rateMovie(movie.id, value)
+
+    if (!result.success) {
+      setError(result.message)
+    }
+  }
 
   return (
     <div className="page">
@@ -45,18 +65,20 @@ function MovieDetails() {
               <p><strong>Genre:</strong> {movie.genre}</p>
             </div>
 
+            {error && <p className="error-text">{error}</p>}
+
             {currentUser && (
               <div className="details-actions">
                 <button
                   className="primary-btn"
-                  onClick={() => toggleWatchlist(movie.id)}
+                  onClick={handleWatchlistToggle}
                 >
                   {inWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
                 </button>
 
                 <div>
                   <p className="movie-small">Your rating:</p>
-                  <RatingStars value={myRating} onRate={(value) => rateMovie(movie.id, value)} />
+                  <RatingStars value={myRating} onRate={handleRate} />
                 </div>
               </div>
             )}
