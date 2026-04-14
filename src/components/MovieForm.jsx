@@ -6,7 +6,7 @@ const defaultForm = {
   year: '',
   image_url: '',
   description: '',
-  cast: '',
+  cast_members: '',
   suggestionId: null,
 }
 
@@ -58,7 +58,7 @@ function MovieForm({ initialValues = defaultForm, onSubmit, buttonText = 'Save' 
 
       <label>
         Cast:
-        <input name="cast" value={form.cast} onChange={handleChange} />
+        <input name="cast_members" value={form.cast_members} onChange={handleChange} />
       </label>
 
       <button type="submit" className="primary-btn">{buttonText}</button>

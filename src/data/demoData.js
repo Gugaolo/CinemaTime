@@ -23,7 +23,7 @@ export const demoMovies = [
     genre: 'Sci-Fi',
     description: 'Epic science fiction film set on Arrakis.',
     image_url: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=80',
-    cast: 'Timothée Chalamet, Zendaya',
+    cast_members: 'Timothée Chalamet, Zendaya',
   },
   {
     id: 2,
@@ -32,7 +32,7 @@ export const demoMovies = [
     genre: 'Drama',
     description: 'A film about the creation of the atomic bomb.',
     image_url: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=900&q=80',
-    cast: 'Cillian Murphy, Emily Blunt',
+    cast_members: 'Cillian Murphy, Emily Blunt',
   },
   {
     id: 3,
@@ -41,7 +41,7 @@ export const demoMovies = [
     genre: 'Sci-Fi',
     description: 'A journey through space and time to save humanity.',
     image_url: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=900&q=80',
-    cast: 'Matthew McConaughey, Anne Hathaway',
+    cast_members: 'Matthew McConaughey, Anne Hathaway',
   },
 ]
 

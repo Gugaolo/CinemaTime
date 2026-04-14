@@ -40,7 +40,7 @@ function MovieDetails() {
             <p className="details-text">{movie.description}</p>
 
             <div className="details-meta">
-              <p><strong>Cast:</strong> {movie.cast || 'Unknown'}</p>
+              <p><strong>Cast:</strong> {movie.cast_members || 'Unknown'}</p>
               <p><strong>Year:</strong> {movie.year}</p>
               <p><strong>Genre:</strong> {movie.genre}</p>
             </div>

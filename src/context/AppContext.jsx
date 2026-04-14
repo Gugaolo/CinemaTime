@@ -29,6 +29,15 @@ function writeStorage(key, value) {
   localStorage.setItem(key, JSON.stringify(value))
 }
 
+function normalizeMovie(movie) {
+  if (!movie) return movie
+
+  return {
+    ...movie,
+    cast_members: movie.cast_members ?? movie.cast ?? '',
+  }
+}
+
 export function AppProvider({ children }) {
   const [users, setUsers] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
@@ -42,7 +51,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     setUsers(readStorage(STORAGE_KEYS.users, demoUsers))
     setCurrentUser(readStorage(STORAGE_KEYS.currentUser, null))
-    setMovies(readStorage(STORAGE_KEYS.movies, demoMovies))
+    setMovies(readStorage(STORAGE_KEYS.movies, demoMovies).map(normalizeMovie))
     setRatings(readStorage(STORAGE_KEYS.ratings, demoRatings))
     setComments(readStorage(STORAGE_KEYS.comments, demoComments))
     setWatchlist(readStorage(STORAGE_KEYS.watchlist, demoWatchlist))
@@ -233,7 +242,7 @@ export function AppProvider({ children }) {
       year: suggestion.year,
       image_url: suggestion.picture_url,
       description: suggestion.description,
-      cast: '',
+      cast_members: '',
       suggestionId: suggestion.id,
     })
   }
@@ -246,7 +255,7 @@ export function AppProvider({ children }) {
       year: Number(movieData.year),
       image_url: movieData.image_url,
       description: movieData.description,
-      cast: movieData.cast,
+      cast_members: movieData.cast_members,
     }
 
     setMovies((current) => [...current, newMovie])
@@ -275,7 +284,7 @@ export function AppProvider({ children }) {
               year: Number(movieData.year),
               image_url: movieData.image_url,
               description: movieData.description,
-              cast: movieData.cast,
+              cast_members: movieData.cast_members,
             }
           : movie,
       ),
