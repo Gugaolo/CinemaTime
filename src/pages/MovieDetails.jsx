@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import RatingStars from '../components/RatingStars'
@@ -13,8 +13,11 @@ function MovieDetails() {
     rateMovie,
     isInWatchlist,
     toggleWatchlist,
+    deleteMovie,
   } = useApp()
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const navigate = useNavigate()
 
   const { id } = useParams()
   const movie = movies.find((item) => String(item.id) === id)
@@ -29,20 +32,47 @@ function MovieDetails() {
 
   async function handleWatchlistToggle() {
     setError('')
+    setSuccess('')
     const result = await toggleWatchlist(movie.id)
 
     if (!result.success) {
       setError(result.message)
+      return
     }
+
+    setSuccess(inWatchlist ? 'Movie removed from watchlist.' : 'Movie added to watchlist.')
   }
 
   async function handleRate(value) {
     setError('')
+    setSuccess('')
     const result = await rateMovie(movie.id, value)
 
     if (!result.success) {
       setError(result.message)
+      return
     }
+
+    setSuccess('Rating saved successfully.')
+  }
+
+  async function handleDeleteMovie() {
+    const confirmed = window.confirm(`Delete "${movie.title}"? This cannot be undone.`)
+    if (!confirmed) {
+      return
+    }
+
+    setError('')
+    setSuccess('')
+    const result = await deleteMovie(movie.id)
+
+    if (!result.success) {
+      setError(result.message)
+      return
+    }
+
+    setSuccess(`"${movie.title}" was deleted.`)
+    navigate('/')
   }
 
   return (
@@ -65,10 +95,26 @@ function MovieDetails() {
               <p><strong>Genre:</strong> {movie.genre}</p>
             </div>
 
+            {success && <p className="success-text">{success}</p>}
             {error && <p className="error-text">{error}</p>}
 
             {currentUser && (
               <div className="details-actions">
+                {currentUser.role === 'admin' && (
+                  <div className="row-actions">
+                    <Link to={`/admin/edit/${movie.id}`} className="small-btn light-btn">
+                      Edit movie
+                    </Link>
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={handleDeleteMovie}
+                    >
+                      Delete movie
+                    </button>
+                  </div>
+                )}
+
                 <button
                   className="primary-btn"
                   onClick={handleWatchlistToggle}

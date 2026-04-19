@@ -17,17 +17,29 @@ function CommentSection({ movieId }) {
   const comments = getMovieComments(movieId)
 
   async function handleSubmit(event) {
-    event.preventDefault()
-    setError('')
-    const result = await addComment(movieId, text)
+  event.preventDefault()
 
-    if (!result.success) {
-      setError(result.message)
-      return
-    }
-
-    setText('')
+  if (!form.image_url && !form.image_file) {
+    setError('Add an image URL or upload an image file.')
+    return
   }
+
+  setIsSubmitting(true)
+  setError('')
+
+  try {
+    const result = await onSubmit(form)
+
+    if (result && !result.success) {
+      setError(result.message || 'Saving failed.')
+    }
+  } catch (error) {
+    console.error(error)
+    setError(error.message || 'Saving failed.')
+  } finally {
+    setIsSubmitting(false)
+  }
+}
 
   function handleEditStart(comment) {
     setEditingCommentId(comment.id)

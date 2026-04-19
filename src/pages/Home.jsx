@@ -22,7 +22,7 @@ function Home() {
               <span>movies in the catalog</span>
             </div>
             <div className="hero-stat">
-              <strong>{currentUser ? 'Live' : 'Guest'}</strong>
+              <strong>{currentUser ? currentUser.role : 'Guest'}</strong>
               <span>account mode</span>
             </div>
             <div className="hero-stat">

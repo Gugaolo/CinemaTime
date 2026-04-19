@@ -7,9 +7,13 @@ function AdminAddMovie() {
   const { addMovie, prefillMovie } = useApp()
   const navigate = useNavigate()
   const [error, setError] = useState('')
+  const [warning, setWarning] = useState('')
+  const [success, setSuccess] = useState('')
 
   async function handleSubmit(formData) {
     setError('')
+    setWarning('')
+    setSuccess('')
     const result = await addMovie(formData)
 
     if (!result.success) {
@@ -17,6 +21,11 @@ function AdminAddMovie() {
       return
     }
 
+    if (result.warning) {
+      setWarning(result.warning)
+    }
+
+    setSuccess('Movie added successfully.')
     navigate('/')
   }
 
@@ -29,6 +38,8 @@ function AdminAddMovie() {
           onSubmit={handleSubmit}
           buttonText="Add"
         />
+        {success && <p className="success-text">{success}</p>}
+        {warning && <p className="muted">{warning}</p>}
         {error && <p className="error-text">{error}</p>}
       </div>
     </div>

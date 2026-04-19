@@ -6,6 +6,7 @@ function AdminApproveSuggestions() {
   const { suggestions, rejectSuggestion, prepareSuggestionForMovie } = useApp()
   const navigate = useNavigate()
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
   const pendingSuggestions = suggestions.filter((item) => item.status === 'pending')
 
@@ -38,11 +39,15 @@ function AdminApproveSuggestions() {
                 className="small-btn light-btn"
                 onClick={async () => {
                   setError('')
+                  setSuccess('')
                   const result = await rejectSuggestion(item.id)
 
                   if (!result.success) {
                     setError(result.message)
+                    return
                   }
+
+                  setSuccess('Suggestion denied successfully.')
                 }}
               >
                 Deny
@@ -51,6 +56,7 @@ function AdminApproveSuggestions() {
           </div>
         ))}
 
+        {success && <p className="success-text">{success}</p>}
         {error && <p className="error-text">{error}</p>}
       </section>
     </div>

@@ -3,6 +3,24 @@ import { supabase } from '../lib/supabase'
 
 const AppContext = createContext()
 
+function withTimeout(promise, timeoutMs, message) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error(message))
+    }, timeoutMs)
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timeoutId)
+        resolve(value)
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId)
+        reject(error)
+      })
+  })
+}
+
 function normalizeMovie(movie) {
   return {
     ...movie,
@@ -24,6 +42,39 @@ function normalizeWatchlistItem(item) {
     id: item.id,
     userId: item.user_id,
     movieId: item.movie_id,
+  }
+}
+
+async function uploadMovieImage(file) {
+  if (!supabase || !file) {
+    return { success: false, message: 'Image upload is not available.' }
+  }
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '-')
+  const filePath = `movies/${Date.now()}-${safeName}`
+
+  try {
+    const { error } = await withTimeout(
+      supabase.storage
+        .from('movie-images')
+        .upload(filePath, file),
+      15000,
+      'Image upload timed out. Check the movie-images bucket and storage policies.',
+    )
+
+    if (error) {
+      console.error('Failed to upload image:', error)
+      return { success: false, message: error.message }
+    }
+
+    const { data } = supabase.storage
+      .from('movie-images')
+      .getPublicUrl(filePath)
+
+    return { success: true, imageUrl: data.publicUrl }
+  } catch (error) {
+    console.error('Failed to upload image:', error)
+    return { success: false, message: error.message }
   }
 }
 
@@ -244,13 +295,15 @@ export function AppProvider({ children }) {
 
     void initializeApp()
 
-    const { data } = supabase?.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        await refreshCurrentUser(session.user)
-      } else {
-        setCurrentUser(null)
-      }
-    }) ?? { data: { subscription: null } }
+    const { data } = supabase?.auth.onAuthStateChange((_event, session) => {
+  if (session?.user) {
+    window.setTimeout(() => {
+      void refreshCurrentUser(session.user)
+    }, 0)
+  } else {
+    setCurrentUser(null)
+  }
+}) ?? { data: { subscription: null } }
 
     return () => {
       ignore = true
@@ -577,19 +630,51 @@ export function AppProvider({ children }) {
       return { success: false, message: 'Supabase is not configured.' }
     }
 
-    const { error } = await supabase.from('movies').insert({
-      title: movieData.title,
-      genre: movieData.genre,
-      year: Number(movieData.year),
-      image_url: movieData.image_url,
-      description: movieData.description,
-      cast_members: movieData.cast_members,
-    })
+    let imageUrl = movieData.image_url?.trim() ?? ''
 
-    if (error) {
+    if (movieData.image_file) {
+      const uploadResult = await uploadMovieImage(movieData.image_file)
+
+      if (!uploadResult.success) {
+        return { success: false, message: uploadResult.message }
+      }
+
+      imageUrl = uploadResult.imageUrl
+    }
+
+    if (!imageUrl) {
+      return { success: false, message: 'Add an image URL or upload an image file.' }
+    }
+
+    let insertError = null
+
+    try {
+      const { error } = await withTimeout(
+        supabase.from('movies').insert({
+          title: movieData.title,
+          genre: movieData.genre,
+          year: Number(movieData.year),
+          image_url: imageUrl,
+          description: movieData.description,
+          cast_members: movieData.cast_members,
+        }),
+        15000,
+        'Saving the movie timed out. Check your database connection and RLS policies.',
+      )
+
+      insertError = error
+    } catch (error) {
       console.error('Failed to add movie:', error)
       return { success: false, message: error.message }
     }
+
+    if (insertError) {
+      console.error('Failed to add movie:', insertError)
+      return { success: false, message: insertError.message }
+    }
+
+    await fetchMovies()
+    setPrefillMovie(null)
 
     if (movieData.suggestionId) {
       const { error: suggestionError } = await supabase
@@ -599,40 +684,121 @@ export function AppProvider({ children }) {
 
       if (suggestionError) {
         console.error('Failed to approve suggestion:', suggestionError)
-        return { success: false, message: suggestionError.message }
+        return {
+          success: true,
+          warning: `Movie was added, but suggestion status could not be updated: ${suggestionError.message}`,
+        }
       }
 
       await fetchSuggestions()
     }
 
-    await fetchMovies()
-    setPrefillMovie(null)
     return { success: true }
   }
 
   async function updateMovie(movieId, movieData) {
-    if (!supabase) {
-      return { success: false, message: 'Supabase is not configured.' }
+  if (!supabase) {
+    return { success: false, message: 'Supabase is not configured.' }
+  }
+
+  let imageUrl = movieData.image_url?.trim() ?? ''
+
+  if (movieData.image_file) {
+    const uploadResult = await uploadMovieImage(movieData.image_file)
+
+    if (!uploadResult.success) {
+      return { success: false, message: uploadResult.message }
     }
 
-    const { error } = await supabase
+    imageUrl = uploadResult.imageUrl
+  }
+
+  if (!imageUrl) {
+    return { success: false, message: 'Add an image URL or upload an image file.' }
+  }
+
+  let updateError = null
+
+  try {
+    const { error } = await withTimeout(
+      supabase
+        .from('movies')
+        .update({
+          title: movieData.title,
+          genre: movieData.genre,
+          year: Number(movieData.year),
+          image_url: imageUrl,
+          description: movieData.description,
+          cast_members: movieData.cast_members,
+        })
+        .eq('id', movieId),
+      15000,
+      'Saving the movie timed out. Check your database connection, storage upload, or RLS policies.',
+    )
+
+    updateError = error
+  } catch (error) {
+    console.error('Failed to update movie:', error)
+    return { success: false, message: error.message }
+  }
+
+  if (updateError) {
+    console.error('Failed to update movie:', updateError)
+    return { success: false, message: updateError.message }
+  }
+
+  await fetchMovies()
+  return { success: true }
+}
+
+  async function deleteMovie(movieId) {
+    if (!supabase || currentUser?.role !== 'admin') {
+      return { success: false, message: 'Only admins can delete movies.' }
+    }
+
+    const deleteMovieResponse = await supabase
       .from('movies')
-      .update({
-        title: movieData.title,
-        genre: movieData.genre,
-        year: Number(movieData.year),
-        image_url: movieData.image_url,
-        description: movieData.description,
-        cast_members: movieData.cast_members,
-      })
+      .delete()
       .eq('id', movieId)
 
-    if (error) {
-      console.error('Failed to update movie:', error)
-      return { success: false, message: error.message }
+    if (deleteMovieResponse.error && deleteMovieResponse.error.code !== '23503') {
+      console.error('Failed to delete movie:', deleteMovieResponse.error)
+      return { success: false, message: deleteMovieResponse.error.message }
     }
 
-    await fetchMovies()
+    if (deleteMovieResponse.error?.code === '23503') {
+      const cleanupTables = ['comments', 'ratings', 'watchlist']
+
+      for (const table of cleanupTables) {
+        const { error } = await supabase
+          .from(table)
+          .delete()
+          .eq('movie_id', movieId)
+
+        if (error) {
+          console.error(`Failed to delete related ${table}:`, error)
+          return { success: false, message: error.message }
+        }
+      }
+
+      const retryResponse = await supabase
+        .from('movies')
+        .delete()
+        .eq('id', movieId)
+
+      if (retryResponse.error) {
+        console.error('Failed to delete movie after cleanup:', retryResponse.error)
+        return { success: false, message: retryResponse.error.message }
+      }
+    }
+
+    await Promise.all([
+      fetchMovies(),
+      fetchComments(),
+      fetchRatings(),
+      fetchWatchlist(currentUser.id),
+    ])
+
     return { success: true }
   }
 
@@ -669,6 +835,7 @@ export function AppProvider({ children }) {
       prepareSuggestionForMovie,
       addMovie,
       updateMovie,
+      deleteMovie,
     }),
     [currentUser, movies, ratings, comments, watchlist, suggestions, prefillMovie, isLoading],
   )

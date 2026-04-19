@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 
 function Navbar() {
-  const { currentUser, logout, isLoading } = useApp()
+  const { currentUser, logout } = useApp()
 
   async function handleLogout() {
     await logout()
@@ -15,7 +15,7 @@ function Navbar() {
       </Link>
 
       <nav className="nav-actions">
-        {!currentUser && !isLoading && (
+        {!currentUser && (
           <>
             <Link to="/sign-up" className="small-btn light-btn">Sign up</Link>
             <Link to="/login" className="small-btn">Login</Link>

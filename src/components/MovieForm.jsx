@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const defaultForm = {
   title: '',
   genre: '',
   year: '',
   image_url: '',
+  image_file: null,
   description: '',
   cast_members: '',
   suggestionId: null,
@@ -15,18 +16,51 @@ function MovieForm({ initialValues = defaultForm, onSubmit, buttonText = 'Save' 
     ...defaultForm,
     ...initialValues,
   })
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    setForm({
+      ...defaultForm,
+      ...initialValues,
+    })
+    setError('')
+  }, [initialValues])
 
   function handleChange(event) {
     const { name, value } = event.target
+    setError('')
     setForm((current) => ({
       ...current,
       [name]: value,
     }))
   }
 
-  function handleSubmit(event) {
+  function handleFileChange(event) {
+    const file = event.target.files?.[0] ?? null
+    setError('')
+
+    setForm((current) => ({
+      ...current,
+      image_file: file,
+    }))
+  }
+
+  async function handleSubmit(event) {
     event.preventDefault()
-    onSubmit(form)
+
+    if (!form.image_url && !form.image_file) {
+      setError('Add an image URL or upload an image file.')
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      await onSubmit(form)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -48,7 +82,13 @@ function MovieForm({ initialValues = defaultForm, onSubmit, buttonText = 'Save' 
 
       <label>
         Picture URL:
-        <input name="image_url" value={form.image_url} onChange={handleChange} required />
+        <input name="image_url" value={form.image_url} onChange={handleChange} />
+      </label>
+
+      <label>
+        Or upload picture:
+        <input type="file" accept="image/*" onChange={handleFileChange} />
+        {form.image_file && <span className="movie-small">Selected file: {form.image_file.name}</span>}
       </label>
 
       <label>
@@ -61,7 +101,11 @@ function MovieForm({ initialValues = defaultForm, onSubmit, buttonText = 'Save' 
         <input name="cast_members" value={form.cast_members} onChange={handleChange} />
       </label>
 
-      <button type="submit" className="primary-btn">{buttonText}</button>
+      {error && <p className="error-text">{error}</p>}
+
+      <button type="submit" className="primary-btn" disabled={isSubmitting}>
+        {isSubmitting ? 'Saving...' : buttonText}
+      </button>
     </form>
   )
 }
