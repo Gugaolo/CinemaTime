@@ -82,6 +82,53 @@ for insert
 to anon, authenticated
 with check (true);
 
+alter table if exists public.comments enable row level security;
+
+drop policy if exists "comments_select_all" on public.comments;
+create policy "comments_select_all"
+on public.comments
+for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "comments_insert_authenticated" on public.comments;
+create policy "comments_insert_authenticated"
+on public.comments
+for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+drop policy if exists "comments_update_owner_or_admin" on public.comments;
+create policy "comments_update_owner_or_admin"
+on public.comments
+for update
+to authenticated
+using (
+  auth.uid() = user_id
+  or exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'admin'
+  )
+)
+with check (
+  auth.uid() = user_id
+  or exists (
+    select 1
+    from public.profiles
+    where profiles.id = auth.uid()
+      and profiles.role = 'admin'
+  )
+);
+
+drop policy if exists "comments_delete_own" on public.comments;
+create policy "comments_delete_own"
+on public.comments
+for delete
+to authenticated
+using (auth.uid() = user_id);
+
 insert into public.movies (title, year, genre, duration, description, image_url, status)
 values
   (

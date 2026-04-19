@@ -473,11 +473,16 @@ export function AppProvider({ children }) {
       return { success: false, message: 'Comment text is required.' }
     }
 
-    const { error } = await supabase
+    let query = supabase
       .from('comments')
       .update({ content: text.trim() })
       .eq('id', commentId)
-      .eq('user_id', currentUser.id)
+
+    if (currentUser.role !== 'admin') {
+      query = query.eq('user_id', currentUser.id)
+    }
+
+    const { error } = await query
 
     if (error) {
       console.error('Failed to update comment:', error)

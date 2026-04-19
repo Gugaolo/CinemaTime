@@ -378,6 +378,8 @@ body {
 }
 
 .movie-card {
+  display: flex;
+  flex-direction: column;
   min-height: 100%;
   padding: 14px;
   border-radius: 24px;
@@ -407,6 +409,9 @@ body {
 }
 
 .movie-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   padding: 14px 6px 6px;
 }
 
@@ -421,8 +426,13 @@ body {
 }
 
 .movie-description {
+  flex: 1;
   min-height: 72px;
   color: #513f38;
+}
+
+.movie-card-footer {
+  margin-top: auto;
 }
 
 .card-actions,

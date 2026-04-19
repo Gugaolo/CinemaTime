@@ -17,33 +17,23 @@ function CommentSection({ movieId }) {
   const comments = getMovieComments(movieId)
 
   async function handleSubmit(event) {
-  event.preventDefault()
+    event.preventDefault()
+    setError('')
 
-  if (!form.image_url && !form.image_file) {
-    setError('Add an image URL or upload an image file.')
-    return
-  }
+    const result = await addComment(movieId, text)
 
-  setIsSubmitting(true)
-  setError('')
-
-  try {
-    const result = await onSubmit(form)
-
-    if (result && !result.success) {
-      setError(result.message || 'Saving failed.')
+    if (!result.success) {
+      setError(result.message)
+      return
     }
-  } catch (error) {
-    console.error(error)
-    setError(error.message || 'Saving failed.')
-  } finally {
-    setIsSubmitting(false)
+
+    setText('')
   }
-}
 
   function handleEditStart(comment) {
     setEditingCommentId(comment.id)
     setEditingText(comment.text)
+    setError('')
   }
 
   function handleEditCancel() {
@@ -71,6 +61,22 @@ function CommentSection({ movieId }) {
     if (!result.success) {
       setError(result.message)
     }
+  }
+
+  function canEditComment(comment) {
+    if (!currentUser) {
+      return false
+    }
+
+    return currentUser.role === 'admin' || currentUser.id === comment.userId
+  }
+
+  function canDeleteComment(comment) {
+    if (!currentUser) {
+      return false
+    }
+
+    return currentUser.id === comment.userId
   }
 
   return (
@@ -114,7 +120,7 @@ function CommentSection({ movieId }) {
               <p>{comment.text}</p>
             )}
 
-            {currentUser?.id === comment.userId && editingCommentId !== comment.id && (
+            {canEditComment(comment) && editingCommentId !== comment.id && (
               <div className="row-actions">
                 <button
                   type="button"
@@ -123,13 +129,15 @@ function CommentSection({ movieId }) {
                 >
                   Edit
                 </button>
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  onClick={() => handleDelete(comment.id)}
-                >
-                  Delete
-                </button>
+                {canDeleteComment(comment) && (
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => handleDelete(comment.id)}
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             )}
           </div>
