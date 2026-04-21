@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useApp } from '../context/AppContext'
+import { useApp } from '../context/useApp'
 
 function Navbar() {
   const { currentUser, logout } = useApp()
@@ -28,6 +28,7 @@ function Navbar() {
               <>
                 <Link to="/admin/approve" className="small-btn light-btn">Approve</Link>
                 <Link to="/admin/add-movie" className="small-btn light-btn">Add movie</Link>
+                <Link to="/admin/users" className="small-btn light-btn">Users</Link>
               </>
             )}
 

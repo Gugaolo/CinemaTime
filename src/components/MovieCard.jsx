@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
-import { useApp } from '../context/AppContext'
+import { useApp } from '../context/useApp'
 import RatingStars from './RatingStars'
 
 function MovieCard({ movie, showEdit = false }) {

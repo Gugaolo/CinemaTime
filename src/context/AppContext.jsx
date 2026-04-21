@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useEffect, useEffectEvent, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 const AppContext = createContext()
@@ -125,6 +125,7 @@ export function AppProvider({ children }) {
   const [comments, setComments] = useState([])
   const [watchlist, setWatchlist] = useState([])
   const [suggestions, setSuggestions] = useState([])
+  const [profiles, setProfiles] = useState([])
   const [prefillMovie, setPrefillMovie] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -216,8 +217,8 @@ export function AppProvider({ children }) {
     setWatchlist(data.map(normalizeWatchlistItem))
   }
 
-  async function fetchSuggestions() {
-    if (!supabase || !currentUser) {
+  async function fetchSuggestions(user = currentUser) {
+    if (!supabase || !user) {
       setSuggestions([])
       return
     }
@@ -251,6 +252,25 @@ export function AppProvider({ children }) {
     )
   }
 
+  async function fetchProfiles() {
+    if (!supabase) {
+      return { success: false, message: 'Supabase is not configured.' }
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, username, email, role')
+      .order('username', { ascending: true })
+
+    if (error) {
+      console.error('Failed to load profiles:', error)
+      return { success: false, message: error.message }
+    }
+
+    setProfiles(data)
+    return { success: true, data }
+  }
+
   async function refreshCurrentUser(authUser) {
     const profile = await fetchProfile(authUser.id)
 
@@ -261,6 +281,11 @@ export function AppProvider({ children }) {
       role: profile?.role ?? 'user',
     })
   }
+
+  const syncCurrentUserData = useEffectEvent(async (user) => {
+    await fetchWatchlist(user.id)
+    await fetchSuggestions(user)
+  })
 
   useEffect(() => {
     let ignore = false
@@ -296,14 +321,18 @@ export function AppProvider({ children }) {
     void initializeApp()
 
     const { data } = supabase?.auth.onAuthStateChange((_event, session) => {
-  if (session?.user) {
-    window.setTimeout(() => {
-      void refreshCurrentUser(session.user)
-    }, 0)
-  } else {
-    setCurrentUser(null)
-  }
-}) ?? { data: { subscription: null } }
+      if (session?.user) {
+        window.setTimeout(() => {
+          void refreshCurrentUser(session.user)
+        }, 0)
+      } else {
+        setCurrentUser(null)
+        setWatchlist([])
+        setSuggestions([])
+        setProfiles([])
+        setPrefillMovie(null)
+      }
+    }) ?? { data: { subscription: null } }
 
     return () => {
       ignore = true
@@ -312,15 +341,10 @@ export function AppProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    if (!currentUser) {
-      setWatchlist([])
-      setSuggestions([])
-      setPrefillMovie(null)
-      return
+    if (currentUser) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void syncCurrentUserData(currentUser)
     }
-
-    void fetchWatchlist(currentUser.id)
-    void fetchSuggestions()
   }, [currentUser])
 
   async function login(email, password) {
@@ -402,6 +426,81 @@ export function AppProvider({ children }) {
 
     if (error) {
       console.error('Logout failed:', error)
+      return
+    }
+
+    setWatchlist([])
+    setSuggestions([])
+    setProfiles([])
+    setPrefillMovie(null)
+  }
+
+  async function updateProfile({ username, email, password }) {
+    if (!supabase || !currentUser) {
+      return { success: false, message: 'You must be logged in to update your profile.' }
+    }
+
+    const trimmedUsername = username.trim()
+    const trimmedEmail = email.trim()
+
+    if (!trimmedUsername || !trimmedEmail) {
+      return { success: false, message: 'Username and email are required.' }
+    }
+
+    const updates = {
+      email: trimmedEmail,
+      data: {
+        username: trimmedUsername,
+      },
+    }
+
+    if (password.trim()) {
+      updates.password = password.trim()
+    }
+
+    const { error: authError } = await supabase.auth.updateUser(updates)
+
+    if (authError) {
+      console.error('Failed to update auth user:', authError)
+      return { success: false, message: authError.message }
+    }
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        username: trimmedUsername,
+        email: trimmedEmail,
+      })
+      .eq('id', currentUser.id)
+
+    if (profileError) {
+      console.error('Failed to update profile:', profileError)
+      return { success: false, message: profileError.message }
+    }
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError) {
+      console.error('Failed to refresh auth user:', userError)
+      return { success: false, message: userError.message }
+    }
+
+    if (user) {
+      await refreshCurrentUser(user)
+    }
+
+    if (currentUser.role === 'admin') {
+      await fetchProfiles()
+    }
+
+    return {
+      success: true,
+      message: password.trim()
+        ? 'Profile updated successfully.'
+        : 'Profile updated successfully. If you changed your email, Supabase may require confirmation.',
     }
   }
 
@@ -702,59 +801,59 @@ export function AppProvider({ children }) {
   }
 
   async function updateMovie(movieId, movieData) {
-  if (!supabase) {
-    return { success: false, message: 'Supabase is not configured.' }
-  }
-
-  let imageUrl = movieData.image_url?.trim() ?? ''
-
-  if (movieData.image_file) {
-    const uploadResult = await uploadMovieImage(movieData.image_file)
-
-    if (!uploadResult.success) {
-      return { success: false, message: uploadResult.message }
+    if (!supabase) {
+      return { success: false, message: 'Supabase is not configured.' }
     }
 
-    imageUrl = uploadResult.imageUrl
+    let imageUrl = movieData.image_url?.trim() ?? ''
+
+    if (movieData.image_file) {
+      const uploadResult = await uploadMovieImage(movieData.image_file)
+
+      if (!uploadResult.success) {
+        return { success: false, message: uploadResult.message }
+      }
+
+      imageUrl = uploadResult.imageUrl
+    }
+
+    if (!imageUrl) {
+      return { success: false, message: 'Add an image URL or upload an image file.' }
+    }
+
+    let updateError = null
+
+    try {
+      const { error } = await withTimeout(
+        supabase
+          .from('movies')
+          .update({
+            title: movieData.title,
+            genre: movieData.genre,
+            year: Number(movieData.year),
+            image_url: imageUrl,
+            description: movieData.description,
+            cast_members: movieData.cast_members,
+          })
+          .eq('id', movieId),
+        15000,
+        'Saving the movie timed out. Check your database connection, storage upload, or RLS policies.',
+      )
+
+      updateError = error
+    } catch (error) {
+      console.error('Failed to update movie:', error)
+      return { success: false, message: error.message }
+    }
+
+    if (updateError) {
+      console.error('Failed to update movie:', updateError)
+      return { success: false, message: updateError.message }
+    }
+
+    await fetchMovies()
+    return { success: true }
   }
-
-  if (!imageUrl) {
-    return { success: false, message: 'Add an image URL or upload an image file.' }
-  }
-
-  let updateError = null
-
-  try {
-    const { error } = await withTimeout(
-      supabase
-        .from('movies')
-        .update({
-          title: movieData.title,
-          genre: movieData.genre,
-          year: Number(movieData.year),
-          image_url: imageUrl,
-          description: movieData.description,
-          cast_members: movieData.cast_members,
-        })
-        .eq('id', movieId),
-      15000,
-      'Saving the movie timed out. Check your database connection, storage upload, or RLS policies.',
-    )
-
-    updateError = error
-  } catch (error) {
-    console.error('Failed to update movie:', error)
-    return { success: false, message: error.message }
-  }
-
-  if (updateError) {
-    console.error('Failed to update movie:', updateError)
-    return { success: false, message: updateError.message }
-  }
-
-  await fetchMovies()
-  return { success: true }
-}
 
   async function deleteMovie(movieId) {
     if (!supabase || currentUser?.role !== 'admin') {
@@ -807,47 +906,45 @@ export function AppProvider({ children }) {
     return { success: true }
   }
 
-  const value = useMemo(
-    () => ({
-      currentUser,
-      movies,
-      ratings,
-      comments,
-      watchlist,
-      suggestions,
-      prefillMovie,
-      isLoading,
-      login,
-      signUp,
-      logout,
-      fetchMovies,
-      fetchComments,
-      fetchRatings,
-      fetchWatchlist,
-      fetchSuggestions,
-      getAverageRating,
-      getUserRating,
-      rateMovie,
-      addComment,
-      updateComment,
-      deleteComment,
-      getMovieComments,
-      isInWatchlist,
-      toggleWatchlist,
-      getUserWatchlistMovies,
-      submitSuggestion,
-      rejectSuggestion,
-      prepareSuggestionForMovie,
-      addMovie,
-      updateMovie,
-      deleteMovie,
-    }),
-    [currentUser, movies, ratings, comments, watchlist, suggestions, prefillMovie, isLoading],
-  )
+  const value = {
+    currentUser,
+    movies,
+    ratings,
+    comments,
+    watchlist,
+    suggestions,
+    profiles,
+    prefillMovie,
+    isLoading,
+    login,
+    signUp,
+    logout,
+    fetchMovies,
+    fetchComments,
+    fetchRatings,
+    fetchWatchlist,
+    fetchSuggestions,
+    fetchProfiles,
+    getAverageRating,
+    getUserRating,
+    updateProfile,
+    rateMovie,
+    addComment,
+    updateComment,
+    deleteComment,
+    getMovieComments,
+    isInWatchlist,
+    toggleWatchlist,
+    getUserWatchlistMovies,
+    submitSuggestion,
+    rejectSuggestion,
+    prepareSuggestionForMovie,
+    addMovie,
+    updateMovie,
+    deleteMovie,
+  }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
 
-export function useApp() {
-  return useContext(AppContext)
-}
+export { AppContext }

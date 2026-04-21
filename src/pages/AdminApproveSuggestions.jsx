@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { useApp } from '../context/AppContext'
+import { useApp } from '../context/useApp'
 
 function AdminApproveSuggestions() {
   const { suggestions, rejectSuggestion, prepareSuggestionForMovie } = useApp()

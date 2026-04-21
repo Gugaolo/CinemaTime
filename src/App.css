@@ -255,6 +255,15 @@ body {
   gap: 20px;
 }
 
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
 .home-section-head h2,
 .panel h2,
 .auth-box h2,
@@ -540,6 +549,54 @@ body {
   gap: 14px;
 }
 
+.accounts-table {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.accounts-table-head,
+.account-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.1fr) minmax(220px, 1.5fr) 120px;
+  gap: 14px;
+  align-items: center;
+}
+
+.accounts-table-head {
+  padding: 0 16px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.account-row {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(82, 48, 35, 0.08);
+  border-radius: 18px;
+}
+
+.account-count,
+.account-role {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(82, 48, 35, 0.1);
+}
+
+.account-role {
+  width: fit-content;
+  text-transform: capitalize;
+  font-weight: 700;
+}
+
 .stars {
   display: flex;
   gap: 6px;
@@ -622,7 +679,9 @@ body {
   }
 
   .movie-grid,
-  .hero-stats {
+  .hero-stats,
+  .accounts-table-head,
+  .account-row {
     grid-template-columns: 1fr;
   }
 

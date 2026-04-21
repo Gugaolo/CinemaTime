@@ -6,9 +6,11 @@ import { AppProvider } from './context/AppContext'
 import AdminAddMovie from './pages/AdminAddMovie'
 import AdminApproveSuggestions from './pages/AdminApproveSuggestions'
 import AdminEditMovie from './pages/AdminEditMovie'
+import AdminUsers from './pages/AdminUsers'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import MovieDetails from './pages/MovieDetails'
+import EditProfile from './pages/EditProfile'
 import Profile from './pages/Profile'
 import SignUp from './pages/SignUp'
 import SubmitSuggestion from './pages/SubmitSuggestion'
@@ -31,6 +33,15 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/profile/edit"
+              element={
+                <ProtectedRoute>
+                  <EditProfile />
                 </ProtectedRoute>
               }
             />
@@ -67,6 +78,15 @@ function App() {
               element={
                 <ProtectedRoute adminOnly>
                   <AdminEditMovie />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute adminOnly>
+                  <AdminUsers />
                 </ProtectedRoute>
               }
             />

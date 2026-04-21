@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import MovieForm from '../components/MovieForm'
-import { useApp } from '../context/AppContext'
+import { useApp } from '../context/useApp'
 
 function AdminAddMovie() {
   const { addMovie, prefillMovie } = useApp()

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 const defaultForm = {
   title: '',
@@ -18,14 +18,6 @@ function MovieForm({ initialValues = defaultForm, onSubmit, buttonText = 'Save' 
   })
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  useEffect(() => {
-    setForm({
-      ...defaultForm,
-      ...initialValues,
-    })
-    setError('')
-  }, [initialValues])
 
   function handleChange(event) {
     const { name, value } = event.target
