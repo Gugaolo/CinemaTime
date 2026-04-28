@@ -1,9 +1,49 @@
+import { useMemo, useState } from 'react'
 import { useApp } from '../context/useApp'
 import MovieCard from '../components/MovieCard'
+import { MOVIE_CATEGORIES } from '../data/movieCategories'
 
 function Home() {
   const { movies, currentUser } = useApp()
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('All categories')
   const featuredMovie = movies[0]
+
+  const categories = useMemo(() => {
+    const genreSet = new Set(MOVIE_CATEGORIES)
+
+    movies.forEach((movie) => {
+      movie.genre
+        ?.split(',')
+        .map((genre) => genre.trim())
+        .filter(Boolean)
+        .forEach((genre) => genreSet.add(genre))
+    })
+
+    return ['All categories', ...Array.from(genreSet).sort((a, b) => a.localeCompare(b))]
+  }, [movies])
+
+  const filteredMovies = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase()
+
+    return movies.filter((movie) => {
+      const matchesSearch =
+        !normalizedSearch ||
+        [movie.title, movie.description, movie.genre, String(movie.year)]
+          .filter(Boolean)
+          .some((value) => value.toLowerCase().includes(normalizedSearch))
+
+      const movieGenres = movie.genre
+        ?.split(',')
+        .map((genre) => genre.trim())
+        .filter(Boolean) ?? []
+
+      const matchesCategory =
+        selectedCategory === 'All categories' || movieGenres.includes(selectedCategory)
+
+      return matchesSearch && matchesCategory
+    })
+  }, [movies, searchTerm, selectedCategory])
 
   return (
     <div className="page home-shell">
@@ -52,15 +92,48 @@ function Home() {
         </div>
       </div>
 
-      <div className="movie-grid">
-        {movies.map((movie) => (
-          <MovieCard
-            key={movie.id}
-            movie={movie}
-            showEdit={currentUser?.role === 'admin'}
+      <section className="catalog-controls">
+        <label className="catalog-search">
+          <span>Search movies</span>
+          <input
+            type="search"
+            placeholder="Search by title, description, genre, or year"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
           />
-        ))}
-      </div>
+        </label>
+
+        <label className="catalog-filter">
+          <span>Category</span>
+          <select
+            value={selectedCategory}
+            onChange={(event) => setSelectedCategory(event.target.value)}
+          >
+            {categories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
+
+      {filteredMovies.length ? (
+        <div className="movie-grid">
+          {filteredMovies.map((movie) => (
+            <MovieCard
+              key={movie.id}
+              movie={movie}
+              showEdit={currentUser?.role === 'admin'}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="empty-state">
+          <h3>No movies match this search.</h3>
+          <p>Try a different title or switch the category filter back to all categories.</p>
+        </div>
+      )}
     </div>
   )
 }

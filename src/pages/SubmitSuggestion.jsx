@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/useApp'
+import { MOVIE_CATEGORIES } from '../data/movieCategories'
 
 function SubmitSuggestion() {
   const { submitSuggestion } = useApp()
@@ -49,7 +50,14 @@ function SubmitSuggestion() {
 
           <label>
             Genre:
-            <input name="genre" value={form.genre} onChange={handleChange} required />
+            <select name="genre" value={form.genre} onChange={handleChange} required>
+              <option value="" disabled>Select a category</option>
+              {MOVIE_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label>

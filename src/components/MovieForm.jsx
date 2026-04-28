@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getMovieCategoryOptions } from '../data/movieCategories'
 
 const defaultForm = {
   title: '',
@@ -18,6 +19,7 @@ function MovieForm({ initialValues = defaultForm, onSubmit, buttonText = 'Save' 
   })
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const categoryOptions = getMovieCategoryOptions(form.genre)
 
   function handleChange(event) {
     const { name, value } = event.target
@@ -64,7 +66,14 @@ function MovieForm({ initialValues = defaultForm, onSubmit, buttonText = 'Save' 
 
       <label>
         Genre:
-        <input name="genre" value={form.genre} onChange={handleChange} required />
+        <select name="genre" value={form.genre} onChange={handleChange} required>
+          <option value="" disabled>Select a category</option>
+          {categoryOptions.map((category) => (
+            <option key={category} value={category}>
+              {category}
+            </option>
+          ))}
+        </select>
       </label>
 
       <label>

@@ -27,7 +27,8 @@ a {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -279,6 +280,84 @@ body {
   color: var(--muted);
 }
 
+.catalog-controls,
+.catalog-search,
+.catalog-filter {
+  display: flex;
+}
+
+.catalog-controls {
+  gap: 16px;
+  align-items: end;
+  flex-wrap: wrap;
+  padding: 20px 22px;
+  border-radius: 24px;
+  background: rgba(255, 250, 244, 0.68);
+  border: 1px solid rgba(82, 48, 35, 0.08);
+  box-shadow: var(--shadow-soft);
+}
+
+.catalog-search,
+.catalog-filter {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.catalog-search {
+  flex: 1 1 320px;
+}
+
+.catalog-filter {
+  flex: 0 1 220px;
+}
+
+.catalog-search span,
+.catalog-filter span {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.catalog-search input,
+.catalog-filter select {
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(82, 48, 35, 0.14);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--text);
+  outline: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.catalog-search input:focus,
+.catalog-filter select:focus {
+  border-color: rgba(184, 63, 39, 0.48);
+  box-shadow: 0 0 0 4px rgba(234, 123, 43, 0.12);
+  transform: translateY(-1px);
+}
+
+.empty-state {
+  padding: 28px 24px;
+  border-radius: 24px;
+  text-align: center;
+  background: rgba(255, 250, 244, 0.68);
+  border: 1px solid rgba(82, 48, 35, 0.08);
+  box-shadow: var(--shadow-soft);
+}
+
+.empty-state h3,
+.empty-state p {
+  margin: 0;
+}
+
+.empty-state p {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
 .auth-box,
 .form-box {
   width: 100%;
@@ -309,8 +388,10 @@ body {
 }
 
 .form-stack input,
+.form-stack select,
 .form-stack textarea,
 .movie-form input,
+.movie-form select,
 .movie-form textarea {
   width: 100%;
   padding: 13px 14px;
@@ -323,8 +404,10 @@ body {
 }
 
 .form-stack input:focus,
+.form-stack select:focus,
 .form-stack textarea:focus,
 .movie-form input:focus,
+.movie-form select:focus,
 .movie-form textarea:focus {
   border-color: rgba(184, 63, 39, 0.48);
   box-shadow: 0 0 0 4px rgba(234, 123, 43, 0.12);
@@ -696,5 +779,14 @@ body {
 
   .details-image {
     height: 320px;
+  }
+
+  .catalog-controls {
+    padding: 18px;
+  }
+
+  .catalog-search,
+  .catalog-filter {
+    flex-basis: 100%;
   }
 }
