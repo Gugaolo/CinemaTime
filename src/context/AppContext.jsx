@@ -504,6 +504,103 @@ export function AppProvider({ children }) {
     }
   }
 
+  async function adminUpdateProfile(profileId, { username, role }) {
+    if (!supabase || currentUser?.role !== 'admin') {
+      return { success: false, message: 'Only admins can update user profiles.' }
+    }
+
+    const trimmedUsername = username.trim()
+
+    if (!trimmedUsername) {
+      return { success: false, message: 'Username is required.' }
+    }
+
+    if (!['admin', 'user'].includes(role)) {
+      return { success: false, message: 'Role must be admin or user.' }
+    }
+
+    if (profileId === currentUser.id && role !== 'admin') {
+      return { success: false, message: 'You cannot remove your own admin role here.' }
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        username: trimmedUsername,
+        role,
+      })
+      .eq('id', profileId)
+
+    if (error) {
+      console.error('Failed to update profile as admin:', error)
+      return { success: false, message: error.message }
+    }
+
+    await fetchProfiles()
+
+    if (profileId === currentUser.id) {
+      setCurrentUser((existing) => (
+        existing
+          ? {
+            ...existing,
+            username: trimmedUsername,
+            role,
+          }
+          : existing
+      ))
+    }
+
+    return { success: true, message: 'Profile updated successfully.' }
+  }
+
+  async function adminDeleteProfile(profileId) {
+    if (!supabase || currentUser?.role !== 'admin') {
+      return { success: false, message: 'Only admins can delete user profiles.' }
+    }
+
+    if (profileId === currentUser.id) {
+      return { success: false, message: 'You cannot delete your own profile here.' }
+    }
+
+    const cleanupTables = [
+      { table: 'comments', column: 'user_id' },
+      { table: 'ratings', column: 'user_id' },
+      { table: 'watchlist', column: 'user_id' },
+      { table: 'movie_suggestions', column: 'submitted_by' },
+    ]
+
+    for (const { table, column } of cleanupTables) {
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq(column, profileId)
+
+      if (error) {
+        console.error(`Failed to delete related ${table}:`, error)
+        return { success: false, message: error.message }
+      }
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', profileId)
+
+    if (error) {
+      console.error('Failed to delete profile as admin:', error)
+      return { success: false, message: error.message }
+    }
+
+    await Promise.all([
+      fetchProfiles(),
+      fetchComments(),
+      fetchRatings(),
+      fetchSuggestions(),
+    ])
+
+    return { success: true, message: 'Profile deleted successfully.' }
+  }
+
   function getAverageRating(movieId) {
     const movieRatings = ratings.filter((item) => item.movieId === movieId)
     if (!movieRatings.length) return 0
@@ -928,6 +1025,8 @@ export function AppProvider({ children }) {
     getAverageRating,
     getUserRating,
     updateProfile,
+    adminUpdateProfile,
+    adminDeleteProfile,
     rateMovie,
     addComment,
     updateComment,

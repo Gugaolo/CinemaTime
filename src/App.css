@@ -638,10 +638,20 @@ body {
   gap: 12px;
 }
 
+.account-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(82, 48, 35, 0.08);
+  border-radius: 18px;
+}
+
 .accounts-table-head,
 .account-row {
   display: grid;
-  grid-template-columns: minmax(160px, 1.1fr) minmax(220px, 1.5fr) 120px;
+  grid-template-columns: minmax(160px, 1.1fr) minmax(220px, 1.5fr) 120px minmax(180px, auto);
   gap: 14px;
   align-items: center;
 }
@@ -656,10 +666,7 @@ body {
 }
 
 .account-row {
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(82, 48, 35, 0.08);
-  border-radius: 18px;
+  padding: 0;
 }
 
 .account-count,
@@ -678,6 +685,49 @@ body {
   width: fit-content;
   text-transform: capitalize;
   font-weight: 700;
+}
+
+.account-editor {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(82, 48, 35, 0.1);
+}
+
+.account-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.account-editor input,
+.account-editor select {
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(82, 48, 35, 0.14);
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--text);
+  outline: none;
+}
+
+.account-editor input:disabled,
+.account-editor select:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.danger-btn {
+  background: rgba(164, 44, 24, 0.1);
+  color: #8b2313;
+}
+
+.admin-note {
+  margin: 0;
+  grid-column: 1 / -1;
 }
 
 .stars {
@@ -765,6 +815,10 @@ body {
   .hero-stats,
   .accounts-table-head,
   .account-row {
+    grid-template-columns: 1fr;
+  }
+
+  .account-editor {
     grid-template-columns: 1fr;
   }
 
